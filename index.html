@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>患者管理システム</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== ヘッダー（全画面共通） ===== -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <h1 class="app-title">患者管理システム</h1>
+      <div class="app-header-date" id="headerDate"></div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- システムエラー表示（データ読み込み失敗時など） -->
+    <div id="systemMessage" class="alert alert-error" hidden></div>
+
+    <!-- 操作結果の通知（登録しました 等） -->
+    <div id="flashMessage" class="alert" hidden></div>
+
+    <!-- =====================================================
+         画面1：患者一覧
+         ===================================================== -->
+    <section id="view-list" class="view">
+      <div class="page-header">
+        <h2 class="page-title">患者一覧</h2>
+        <button type="button" id="btnNewPatient" class="btn btn-primary">新規患者登録</button>
+      </div>
+
+      <div class="panel">
+        <div class="search-bar">
+          <label for="searchInput" class="search-label">患者検索</label>
+          <input type="search" id="searchInput" class="form-control search-input"
+                 placeholder="氏名・フリガナ・患者ID（例：山田、P0001）" autocomplete="off">
+          <button type="button" id="btnClearSearch" class="btn btn-secondary">クリア</button>
+          <div class="patient-count" id="patientCount"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-id">患者ID</th>
+                <th>氏名</th>
+                <th class="col-date">生年月日</th>
+                <th class="col-phone">電話番号</th>
+                <th class="col-date">初診日</th>
+                <th class="col-date">最終来院日</th>
+              </tr>
+            </thead>
+            <tbody id="patientTableBody"></tbody>
+          </table>
+        </div>
+        <div class="list-footer">
+          <p class="table-note">※ 最終来院日の新しい順に表示しています。氏名をクリックすると患者詳細を表示します。</p>
+          <button type="button" id="btnResetDemo" class="btn btn-sm btn-danger-outline">デモデータに戻す</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         画面2：患者登録・編集フォーム（新規と編集で共用）
+         ===================================================== -->
+    <section id="view-patient-form" class="view" hidden>
+      <div class="page-header">
+        <h2 class="page-title" id="formTitle">新規患者登録</h2>
+      </div>
+
+      <div class="panel">
+        <div id="patientFormErrorSummary" class="alert alert-error" hidden></div>
+
+        <!-- novalidate：ブラウザ標準のエラー表示を使わず、日本語メッセージを自前で表示する -->
+        <form id="patientForm" novalidate>
+
+          <div class="form-row">
+            <span class="form-label">患者ID</span>
+            <div class="form-field">
+              <span class="form-static" id="f-idDisplay"></span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-name" class="form-label">氏名<span class="badge-required">必須</span></label>
+            <div class="form-field">
+              <input type="text" id="f-name" class="form-control" maxlength="50" placeholder="例：山田 太郎">
+              <p class="field-error" data-error-for="name"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-kana" class="form-label">フリガナ</label>
+            <div class="form-field">
+              <input type="text" id="f-kana" class="form-control" maxlength="50" placeholder="例：ヤマダ タロウ">
+              <p class="field-error" data-error-for="kana"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-birthDate" class="form-label">生年月日</label>
+            <div class="form-field">
+              <input type="date" id="f-birthDate" class="form-control form-control-date">
+              <p class="field-error" data-error-for="birthDate"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <span class="form-label">性別</span>
+            <div class="form-field">
+              <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="gender" value="" checked> 未選択</label>
+                <label class="radio-label"><input type="radio" name="gender" value="男性"> 男性</label>
+                <label class="radio-label"><input type="radio" name="gender" value="女性"> 女性</label>
+                <label class="radio-label"><input type="radio" name="gender" value="その他"> その他</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-phone" class="form-label">電話番号</label>
+            <div class="form-field">
+              <input type="tel" id="f-phone" class="form-control form-control-md" maxlength="20" placeholder="例：090-1234-5678">
+              <p class="field-error" data-error-for="phone"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-address" class="form-label">住所</label>
+            <div class="form-field">
+              <input type="text" id="f-address" class="form-control" maxlength="120" placeholder="例：東京都杉並区高円寺南2-15-8">
+              <p class="field-error" data-error-for="address"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-firstVisitDate" class="form-label">初診日<span class="badge-required">必須</span></label>
+            <div class="form-field">
+              <input type="date" id="f-firstVisitDate" class="form-control form-control-date">
+              <p class="field-error" data-error-for="firstVisitDate"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="f-note" class="form-label">備考</label>
+            <div class="form-field">
+              <textarea id="f-note" class="form-control" rows="4" maxlength="500"
+                        placeholder="例：既往歴、アレルギー、服用中の薬など"></textarea>
+              <p class="field-error" data-error-for="note"></p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnCancelForm" class="btn btn-secondary">キャンセル</button>
+            <button type="submit" id="btnSubmitForm" class="btn btn-primary">登録</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         画面3：患者詳細
+         ===================================================== -->
+    <section id="view-detail" class="view" hidden>
+      <div class="breadcrumb">
+        <button type="button" id="btnBackToList" class="btn-link">&larr; 患者一覧へ戻る</button>
+      </div>
+
+      <div class="page-header">
+        <h2 class="page-title" id="detailTitle">患者詳細</h2>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3 class="panel-title">患者基本情報</h3>
+          <button type="button" id="btnEditPatient" class="btn btn-secondary">基本情報を編集</button>
+        </div>
+        <dl class="info-grid" id="patientInfo"></dl>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3 class="panel-title">来院履歴</h3>
+          <button type="button" id="btnAddVisit" class="btn btn-primary">＋ 来院記録を追加</button>
+        </div>
+
+        <!-- 来院回数・累計診療費・最終来院日 -->
+        <dl class="stats" id="visitStats"></dl>
+
+        <div class="table-wrap">
+          <table class="data-table visit-table">
+            <thead>
+              <tr>
+                <th class="col-date">来院日</th>
+                <th>主訴・症状</th>
+                <th>診療内容</th>
+                <th class="col-doctor">担当医</th>
+                <th class="col-fee">費用</th>
+                <th>備考</th>
+                <th class="col-action">操作</th>
+              </tr>
+            </thead>
+            <tbody id="visitTableBody"></tbody>
+          </table>
+        </div>
+        <p class="table-note">※ 来院日の新しい順に表示しています。</p>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         画面4：来院記録の追加・編集フォーム（新規と編集で共用）
+         ===================================================== -->
+    <section id="view-visit-form" class="view" hidden>
+      <div class="page-header">
+        <h2 class="page-title" id="visitFormTitle">来院記録の追加</h2>
+      </div>
+
+      <div class="panel">
+        <div id="visitFormErrorSummary" class="alert alert-error" hidden></div>
+
+        <form id="visitForm" novalidate>
+
+          <div class="form-row">
+            <span class="form-label">患者</span>
+            <div class="form-field">
+              <span class="form-static" id="v-patientDisplay"></span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <span class="form-label">記録ID</span>
+            <div class="form-field">
+              <span class="form-static" id="v-idDisplay"></span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-date" class="form-label">来院日<span class="badge-required">必須</span></label>
+            <div class="form-field">
+              <input type="date" id="v-date" class="form-control form-control-date">
+              <p class="field-error" data-error-for="date"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-complaint" class="form-label">主訴・症状</label>
+            <div class="form-field">
+              <input type="text" id="v-complaint" class="form-control" maxlength="200" placeholder="例：右下の奥歯が冷たい物でしみる">
+              <p class="field-error" data-error-for="complaint"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-treatment" class="form-label">診療内容</label>
+            <div class="form-field">
+              <textarea id="v-treatment" class="form-control" rows="3" maxlength="500"
+                        placeholder="例：口腔内検査、レントゲン撮影、右下6番 CR充填"></textarea>
+              <p class="field-error" data-error-for="treatment"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-doctor" class="form-label">担当医</label>
+            <div class="form-field">
+              <!-- list="doctorList"：過去に入力した担当医名を候補として表示する -->
+              <input type="text" id="v-doctor" class="form-control form-control-md" maxlength="30"
+                     list="doctorList" placeholder="例：佐藤">
+              <datalist id="doctorList"></datalist>
+              <p class="field-error" data-error-for="doctor"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-fee" class="form-label">費用<span class="badge-required">必須</span></label>
+            <div class="form-field">
+              <div class="input-unit">
+                <input type="text" id="v-fee" class="form-control form-control-fee" inputmode="numeric"
+                       maxlength="12" placeholder="例：3500">
+                <span class="input-unit-label">円</span>
+              </div>
+              <p class="field-hint">0以上の整数で入力してください（費用が発生しない場合は 0）。</p>
+              <p class="field-error" data-error-for="fee"></p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="v-note" class="form-label">備考</label>
+            <div class="form-field">
+              <textarea id="v-note" class="form-control" rows="3" maxlength="500"
+                        placeholder="例：次回は根管治療を継続"></textarea>
+              <p class="field-error" data-error-for="note"></p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnCancelVisitForm" class="btn btn-secondary">キャンセル</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 来院記録の削除（編集時のみ表示） -->
+      <div class="danger-area" id="deleteVisitArea" hidden>
+        <p class="danger-area-text">この来院記録を削除します。削除した記録は元に戻せません。</p>
+        <button type="button" id="btnDeleteVisit" class="btn btn-sm btn-danger-outline">この来院記録を削除</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 読み込み順が大切：先にデモデータ、次にアプリ本体 -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
