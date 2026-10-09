@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>初診問診票</title>
+  <!-- 管理画面と同じ色・ボタンを使うため style.css を共有し、スマートフォン用の調整を questionnaire.css で行う -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="questionnaire.css">
+</head>
+<body class="q-body">
+
+  <!--
+    患者さんがスマートフォンで開く画面です。
+    管理画面（index.html）とは別のページにし、患者データ（data.js）や管理機能（app.js）は読み込みません。
+    そのため、この画面から患者一覧や他の患者の情報を見ることはできません。
+  -->
+
+  <header class="app-header">
+    <div class="q-header-inner">
+      <h1 class="app-title">初診問診票</h1>
+      <span class="q-header-sub">歯科クリニック</span>
+    </div>
+  </header>
+
+  <main class="q-container">
+
+    <!-- 進み具合の表示（① 入力 → ② 確認 → ③ 完了） -->
+    <ol class="q-steps" aria-label="入力の流れ">
+      <li class="q-step is-current" data-step="input"><span class="q-step-num">1</span>入力</li>
+      <li class="q-step" data-step="confirm"><span class="q-step-num">2</span>確認</li>
+      <li class="q-step" data-step="complete"><span class="q-step-num">3</span>完了</li>
+    </ol>
+
+    <!-- =====================================================
+         画面①：問診票の入力
+         ===================================================== -->
+    <section id="step-input">
+      <div class="q-intro">
+        <p>ご来院いただきありがとうございます。<br>
+        診療をスムーズに行うため、以下の質問にお答えください（所要時間：約5分）。</p>
+        <p><span class="badge-required">必須</span> の項目は必ずご回答ください。その他の項目は、分かる範囲でご回答ください。</p>
+      </div>
+
+      <!-- URL の最後に ?demo=1 を付けたときだけ表示（動作確認用の架空データを入力するボタン） -->
+      <div class="q-demo" id="demoArea" hidden>
+        <button type="button" id="btnFillDemo" class="btn btn-secondary">テスト用の架空データを入力</button>
+      </div>
+
+      <div id="errorSummary" class="alert alert-error" hidden></div>
+
+      <form id="questionnaireForm" novalidate>
+
+        <!-- ---------- 基本情報 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">基本情報</h2>
+
+          <div class="q-item" data-field="name">
+            <label for="q-name" class="q-label">氏名<span class="badge-required">必須</span></label>
+            <input type="text" id="q-name" class="form-control" maxlength="50" autocomplete="name" placeholder="例：山田 花子">
+            <p class="field-error" data-error-for="name"></p>
+          </div>
+
+          <div class="q-item" data-field="kana">
+            <label for="q-kana" class="q-label">フリガナ</label>
+            <input type="text" id="q-kana" class="form-control" maxlength="50" placeholder="例：ヤマダ ハナコ">
+            <p class="field-error" data-error-for="kana"></p>
+          </div>
+
+          <div class="q-item" data-field="birthDate">
+            <label for="q-birthYear" class="q-label">生年月日</label>
+            <!-- 年・月・日をプルダウンで選ぶ（スマートフォンではスクロールで素早く選べる）。選択肢は questionnaire.js で作る -->
+            <div class="q-date-select">
+              <select id="q-birthYear" class="form-control" aria-label="生年月日（年）"></select>
+              <select id="q-birthMonth" class="form-control" aria-label="生年月日（月）"></select>
+              <select id="q-birthDay" class="form-control" aria-label="生年月日（日）"></select>
+            </div>
+            <p class="field-error" data-error-for="birthDate"></p>
+          </div>
+
+          <fieldset class="q-item" data-field="gender">
+            <legend class="q-label">性別</legend>
+            <div class="q-options q-options-row">
+              <label class="q-option"><input type="radio" name="gender" value="男性"><span>男性</span></label>
+              <label class="q-option"><input type="radio" name="gender" value="女性"><span>女性</span></label>
+              <label class="q-option"><input type="radio" name="gender" value="その他"><span>その他</span></label>
+              <label class="q-option"><input type="radio" name="gender" value="回答しない"><span>回答しない</span></label>
+            </div>
+          </fieldset>
+
+          <div class="q-item" data-field="phone">
+            <label for="q-phone" class="q-label">電話番号</label>
+            <input type="tel" id="q-phone" class="form-control" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="例：090-1234-5678">
+            <p class="field-error" data-error-for="phone"></p>
+          </div>
+
+          <div class="q-item" data-field="address">
+            <label for="q-address" class="q-label">住所</label>
+            <input type="text" id="q-address" class="form-control" maxlength="120" autocomplete="street-address" placeholder="例：東京都杉並区高円寺南1-2-3">
+          </div>
+        </section>
+
+        <!-- ---------- 来院目的 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">来院目的</h2>
+
+          <fieldset class="q-item" data-field="purposes">
+            <legend class="q-label">本日はどのようなご用件で来院されましたか？<span class="badge-required">必須</span><span class="q-multi">複数選択可</span></legend>
+            <div class="q-options">
+              <label class="q-option"><input type="checkbox" name="purposes" value="虫歯治療"><span>虫歯治療</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="歯のクリーニング"><span>歯のクリーニング</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="定期検診"><span>定期検診</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="歯周病治療"><span>歯周病治療</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="ホワイトニング"><span>ホワイトニング</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="歯列矯正の相談"><span>歯列矯正の相談</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="親知らずの相談"><span>親知らずの相談</span></label>
+              <label class="q-option"><input type="checkbox" name="purposes" value="その他"><span>その他</span></label>
+            </div>
+            <!-- data-show-when：「その他」にチェックしたときだけ表示する -->
+            <div class="q-sub" data-show-when="purposes=その他" hidden>
+              <input type="text" id="q-purposeOther" class="form-control" maxlength="100" placeholder="その他の内容をご記入ください" aria-label="来院目的（その他の内容）">
+            </div>
+            <p class="field-error" data-error-for="purposes"></p>
+          </fieldset>
+        </section>
+
+        <!-- ---------- 現在の症状 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">現在の症状</h2>
+
+          <fieldset class="q-item" data-field="symptoms">
+            <legend class="q-label">現在、気になる症状はありますか？<span class="q-multi">複数選択可</span></legend>
+            <div class="q-options">
+              <label class="q-option"><input type="checkbox" name="symptoms" value="歯が痛い"><span>歯が痛い</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="歯ぐきから出血する"><span>歯ぐきから出血する</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="冷たいものがしみる"><span>冷たいものがしみる</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="歯ぐきが腫れている"><span>歯ぐきが腫れている</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="詰め物が取れた"><span>詰め物が取れた</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="口臭が気になる"><span>口臭が気になる</span></label>
+              <!-- data-exclusive：選ぶと他の選択肢のチェックが外れる -->
+              <label class="q-option"><input type="checkbox" name="symptoms" value="特に症状はない" data-exclusive><span>特に症状はない</span></label>
+              <label class="q-option"><input type="checkbox" name="symptoms" value="その他"><span>その他</span></label>
+            </div>
+            <div class="q-sub" data-show-when="symptoms=その他" hidden>
+              <input type="text" id="q-symptomOther" class="form-control" maxlength="100" placeholder="その他の症状をご記入ください" aria-label="症状（その他の内容）">
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- 希望する診療・サービス ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">ご希望の診療・サービス</h2>
+
+          <fieldset class="q-item" data-field="services">
+            <legend class="q-label">当てはまるものをお選びください<span class="q-multi">複数選択可</span></legend>
+            <div class="q-options">
+              <label class="q-option"><input type="checkbox" name="services" value="保険診療を希望する"><span>保険診療を希望する</span></label>
+              <label class="q-option"><input type="checkbox" name="services" value="自費診療も検討したい"><span>自費診療も検討したい</span></label>
+              <label class="q-option"><input type="checkbox" name="services" value="予防歯科に関心がある"><span>予防歯科に関心がある</span></label>
+              <label class="q-option"><input type="checkbox" name="services" value="審美歯科に関心がある"><span>審美歯科に関心がある</span></label>
+              <label class="q-option"><input type="checkbox" name="services" value="相談して決めたい"><span>相談して決めたい</span></label>
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- 受診に関する希望 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">受診に関するご希望</h2>
+
+          <fieldset class="q-item" data-field="preferredTimes">
+            <legend class="q-label">ご希望の通院時間帯<span class="q-multi">複数選択可</span></legend>
+            <div class="q-options">
+              <label class="q-option"><input type="checkbox" name="preferredTimes" value="平日午前"><span>平日午前</span></label>
+              <label class="q-option"><input type="checkbox" name="preferredTimes" value="平日午後"><span>平日午後</span></label>
+              <label class="q-option"><input type="checkbox" name="preferredTimes" value="平日夜"><span>平日夜</span></label>
+              <label class="q-option"><input type="checkbox" name="preferredTimes" value="土曜日"><span>土曜日</span></label>
+              <label class="q-option"><input type="checkbox" name="preferredTimes" value="特に希望なし" data-exclusive><span>特に希望なし</span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="q-item" data-field="costPreference">
+            <legend class="q-label">治療費について</legend>
+            <div class="q-options q-options-single">
+              <label class="q-option"><input type="radio" name="costPreference" value="できるだけ費用を抑えたい"><span>できるだけ費用を抑えたい</span></label>
+              <label class="q-option"><input type="radio" name="costPreference" value="費用より治療内容を重視したい"><span>費用より治療内容を重視したい</span></label>
+              <label class="q-option"><input type="radio" name="costPreference" value="相談して決めたい"><span>相談して決めたい</span></label>
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- 来院のきっかけ ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">来院のきっかけ</h2>
+
+          <fieldset class="q-item" data-field="referral">
+            <legend class="q-label">当院を何でお知りになりましたか？</legend>
+            <div class="q-options">
+              <label class="q-option"><input type="radio" name="referral" value="Google検索"><span>Google検索</span></label>
+              <label class="q-option"><input type="radio" name="referral" value="SNS"><span>SNS</span></label>
+              <label class="q-option"><input type="radio" name="referral" value="知人・家族の紹介"><span>知人・家族の紹介</span></label>
+              <label class="q-option"><input type="radio" name="referral" value="近所に住んでいる"><span>近所に住んでいる</span></label>
+              <label class="q-option"><input type="radio" name="referral" value="看板を見た"><span>看板を見た</span></label>
+              <label class="q-option"><input type="radio" name="referral" value="その他"><span>その他</span></label>
+            </div>
+            <div class="q-sub" data-show-when="referral=その他" hidden>
+              <input type="text" id="q-referralOther" class="form-control" maxlength="100" placeholder="きっかけをご記入ください" aria-label="来院のきっかけ（その他の内容）">
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- 健康状態 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">健康状態</h2>
+          <p class="q-section-note">安全に治療を行うために大切な質問です。分からない場合は「わからない」をお選びください。</p>
+
+          <fieldset class="q-item" data-field="allergy">
+            <legend class="q-label">アレルギーはありますか？<span class="badge-required">必須</span></legend>
+            <div class="q-options q-options-row">
+              <label class="q-option"><input type="radio" name="allergy" value="なし"><span>なし</span></label>
+              <label class="q-option"><input type="radio" name="allergy" value="あり"><span>あり</span></label>
+              <label class="q-option"><input type="radio" name="allergy" value="わからない"><span>わからない</span></label>
+            </div>
+            <div class="q-sub" data-show-when="allergy=あり" hidden>
+              <p class="q-sub-label">該当するものをお選びください（複数選択可）</p>
+              <div class="q-options">
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="薬（抗生物質・痛み止めなど）"><span>薬（抗生物質・痛み止めなど）</span></label>
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="麻酔"><span>麻酔</span></label>
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="金属"><span>金属</span></label>
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="ゴム（ラテックス）"><span>ゴム（ラテックス）</span></label>
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="食物"><span>食物</span></label>
+                <label class="q-option"><input type="checkbox" name="allergyItems" value="その他"><span>その他</span></label>
+              </div>
+              <input type="text" id="q-allergyDetail" class="form-control" maxlength="200" placeholder="詳しい内容（薬の名前など）" aria-label="アレルギーの詳しい内容">
+            </div>
+            <p class="field-error" data-error-for="allergy"></p>
+          </fieldset>
+
+          <fieldset class="q-item" data-field="medication">
+            <legend class="q-label">現在服用しているお薬はありますか？<span class="badge-required">必須</span></legend>
+            <div class="q-options q-options-row">
+              <label class="q-option"><input type="radio" name="medication" value="なし"><span>なし</span></label>
+              <label class="q-option"><input type="radio" name="medication" value="あり"><span>あり</span></label>
+            </div>
+            <div class="q-sub" data-show-when="medication=あり" hidden>
+              <input type="text" id="q-medicationDetail" class="form-control" maxlength="200" placeholder="お薬の名前（お薬手帳の内容など）" aria-label="服用中のお薬の名前">
+            </div>
+            <p class="field-error" data-error-for="medication"></p>
+          </fieldset>
+
+          <fieldset class="q-item" data-field="disease">
+            <legend class="q-label">治療中・治療したことのある病気（持病）はありますか？<span class="badge-required">必須</span></legend>
+            <div class="q-options q-options-row">
+              <label class="q-option"><input type="radio" name="disease" value="なし"><span>なし</span></label>
+              <label class="q-option"><input type="radio" name="disease" value="あり"><span>あり</span></label>
+            </div>
+            <div class="q-sub" data-show-when="disease=あり" hidden>
+              <p class="q-sub-label">該当するものをお選びください（複数選択可）</p>
+              <div class="q-options">
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="高血圧"><span>高血圧</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="糖尿病"><span>糖尿病</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="心臓病"><span>心臓病</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="脳血管疾患"><span>脳血管疾患</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="喘息"><span>喘息</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="肝臓の病気"><span>肝臓の病気</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="腎臓の病気"><span>腎臓の病気</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="骨粗しょう症"><span>骨粗しょう症</span></label>
+                <label class="q-option"><input type="checkbox" name="diseaseItems" value="その他"><span>その他</span></label>
+              </div>
+              <input type="text" id="q-diseaseDetail" class="form-control" maxlength="200" placeholder="病名や治療中の内容など" aria-label="持病の詳しい内容">
+            </div>
+            <p class="field-error" data-error-for="disease"></p>
+          </fieldset>
+
+          <fieldset class="q-item" data-field="considerations">
+            <legend class="q-label">治療の際に配慮してほしいことはありますか？<span class="q-multi">複数選択可</span></legend>
+            <div class="q-options">
+              <label class="q-option"><input type="checkbox" name="considerations" value="痛みに弱い"><span>痛みに弱い</span></label>
+              <label class="q-option"><input type="checkbox" name="considerations" value="歯科治療に不安がある"><span>歯科治療に不安がある</span></label>
+              <label class="q-option"><input type="checkbox" name="considerations" value="麻酔で気分が悪くなったことがある"><span>麻酔で気分が悪くなったことがある</span></label>
+              <label class="q-option"><input type="checkbox" name="considerations" value="口を長く開けているのがつらい"><span>口を長く開けているのがつらい</span></label>
+              <label class="q-option"><input type="checkbox" name="considerations" value="妊娠中・授乳中"><span>妊娠中・授乳中</span></label>
+              <label class="q-option"><input type="checkbox" name="considerations" value="その他"><span>その他</span></label>
+            </div>
+            <div class="q-sub" data-show-when="considerations=その他" hidden>
+              <input type="text" id="q-considerationDetail" class="form-control" maxlength="200" placeholder="配慮してほしい内容をご記入ください" aria-label="配慮してほしいこと（その他の内容）">
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ---------- その他 ---------- -->
+        <section class="q-section">
+          <h2 class="q-section-title">その他</h2>
+
+          <div class="q-item" data-field="freeText">
+            <label for="q-freeText" class="q-label">その他、ご希望やご質問があればご記入ください</label>
+            <textarea id="q-freeText" class="form-control" rows="4" maxlength="500" placeholder="例：前の歯科医院で治療途中の歯があります"></textarea>
+          </div>
+        </section>
+
+        <div class="q-actions">
+          <button type="submit" class="btn btn-primary q-btn-main">入力内容を確認する</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- =====================================================
+         画面②：回答内容の確認
+         ===================================================== -->
+    <section id="step-confirm" hidden>
+      <div class="q-intro">
+        <p>以下の内容でよろしければ「送信する」を押してください。<br>
+        修正する場合は「修正する」を押してください。</p>
+      </div>
+
+      <div id="sendError" class="alert alert-error" hidden></div>
+
+      <!-- 回答内容は questionnaire.js で作って、ここに表示する -->
+      <div id="confirmContent"></div>
+
+      <div class="q-actions q-actions-confirm">
+        <button type="button" id="btnBackToInput" class="btn btn-secondary q-btn-main">修正する</button>
+        <button type="button" id="btnSend" class="btn btn-primary q-btn-main">送信する</button>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         画面③：送信完了
+         ===================================================== -->
+    <section id="step-complete" hidden>
+      <div class="q-complete">
+        <p class="q-complete-title">問診票の送信が完了しました。</p>
+        <p class="q-complete-text">受付スタッフにお声がけください。</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 読み込み順が大切：先に共通処理、次に問診票の処理 -->
+  <script src="questionnaire-common.js"></script>
+  <script src="questionnaire.js"></script>
+</body>
+</html>

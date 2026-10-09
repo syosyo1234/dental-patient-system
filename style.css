@@ -582,7 +582,133 @@ textarea.form-control {
   color: var(--color-text-sub);
 }
 
-/* ---------- 14. タブレット・小さい画面 ---------- */
+/* ---------- 14. 問診票受付 ---------- */
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+a.btn {
+  text-decoration: none;     /* リンク（<a>）をボタンと同じ見た目にする */
+}
+
+/* 「問診票受付」ボタンの未確認件数 */
+.count-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #fff;
+  background: var(--color-danger);
+  border-radius: 10px;
+}
+
+/* 受付状況のラベル */
+.status-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.status-unconfirmed { color: var(--color-danger);  background: var(--color-danger-bg);  border-color: #efc3bd; }
+.status-confirmed   { color: var(--color-primary); background: var(--color-primary-light); border-color: #c3cfdf; }
+.status-registered  { color: var(--color-success); background: var(--color-success-bg); border-color: #bfdcc9; }
+
+.status-patient {
+  margin-left: 6px;
+  font-size: 13px;
+  color: var(--color-text-sub);
+}
+
+.col-datetime { width: 150px; }
+.col-name     { width: 180px; }
+.col-status   { width: 170px; }
+
+/* 未確認の問診票は太字で目立たせる */
+.data-table tbody tr.is-unconfirmed td {
+  font-weight: 600;
+}
+
+/* 確認画面の上部（受付ID・受付日時・受付状況） */
+.q-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0 0 16px;
+}
+
+.q-meta dt {
+  font-size: 13px;
+  color: var(--color-text-sub);
+}
+
+.q-meta dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.q-action-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+/* 重複の可能性の警告（黄色） */
+.alert-warning {
+  border-color: #ecd9a3;
+  border-left-color: #a86b00;
+  background: #fff8e6;
+  color: #6b4a00;
+}
+
+.duplicate-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duplicate-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #ecd9a3;
+}
+
+.q-register {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.q-register-text {
+  flex: 1 1 360px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-sub);
+}
+
+.empty-note {
+  margin: 0;
+  color: var(--color-text-sub);
+  font-size: 14px;
+}
+
+/* ---------- 15. タブレット・小さい画面 ---------- */
 @media (max-width: 768px) {
   .container {
     padding: 16px;

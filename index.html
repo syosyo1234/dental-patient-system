@@ -30,7 +30,12 @@
     <section id="view-list" class="view">
       <div class="page-header">
         <h2 class="page-title">患者一覧</h2>
-        <button type="button" id="btnNewPatient" class="btn btn-primary">新規患者登録</button>
+        <div class="page-actions">
+          <button type="button" id="btnQuestionnaires" class="btn btn-secondary">
+            問診票受付<span class="count-badge" id="questionnaireBadge" hidden></span>
+          </button>
+          <button type="button" id="btnNewPatient" class="btn btn-primary">新規患者登録</button>
+        </div>
       </div>
 
       <div class="panel">
@@ -209,6 +214,14 @@
         </div>
         <p class="table-note">※ 来院日の新しい順に表示しています。</p>
       </div>
+
+      <!-- 初診問診票（来院履歴とは別に管理） -->
+      <div class="panel">
+        <div class="panel-header">
+          <h3 class="panel-title">初診問診票</h3>
+        </div>
+        <div id="patientQuestionnaires"></div>
+      </div>
     </section>
 
     <!-- =====================================================
@@ -310,10 +323,64 @@
       </div>
     </section>
 
+    <!-- =====================================================
+         画面5：問診票受付（患者さんが送信した問診票の一覧）
+         ===================================================== -->
+    <section id="view-questionnaires" class="view" hidden>
+      <div class="breadcrumb">
+        <button type="button" class="btn-link js-back-to-list">&larr; 患者一覧へ戻る</button>
+      </div>
+
+      <div class="page-header">
+        <h2 class="page-title">問診票受付</h2>
+        <a href="questionnaire.html" target="_blank" class="btn btn-secondary">患者用の問診票を開く</a>
+      </div>
+
+      <div id="questionnaireError" class="alert alert-error" hidden></div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-datetime">受付日時</th>
+                <th class="col-name">氏名</th>
+                <th>来院目的</th>
+                <th class="col-status">受付状況</th>
+                <th class="col-action">操作</th>
+              </tr>
+            </thead>
+            <tbody id="questionnaireTableBody"></tbody>
+          </table>
+        </div>
+        <p class="table-note">※ 新しい順に表示しています。氏名または「確認」を押すと、回答内容を表示します。</p>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         画面6：問診票の内容確認・患者登録
+         ===================================================== -->
+    <section id="view-questionnaire-detail" class="view" hidden>
+      <div class="breadcrumb">
+        <button type="button" id="btnBackToQuestionnaires" class="btn-link">&larr; 問診票受付へ戻る</button>
+      </div>
+
+      <div class="page-header">
+        <h2 class="page-title" id="questionnaireDetailTitle">問診票の内容</h2>
+      </div>
+
+      <!-- 受付状況と「患者として登録」ボタン -->
+      <div class="panel" id="questionnaireActions"></div>
+
+      <!-- 回答内容 -->
+      <div id="questionnaireAnswers"></div>
+    </section>
+
   </main>
 
-  <!-- 読み込み順が大切：先にデモデータ、次にアプリ本体 -->
+  <!-- 読み込み順が大切：デモデータ → 問診票の共通処理 → アプリ本体 -->
   <script src="data.js"></script>
+  <script src="questionnaire-common.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

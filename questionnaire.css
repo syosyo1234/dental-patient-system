@@ -1,0 +1,364 @@
+/* =========================================================
+   初診問診票 - questionnaire.css
+   色・ボタンなどの基本は style.css（管理画面と共通）を使い、
+   ここではスマートフォンで入力しやすくするための調整だけを書く。
+   ========================================================= */
+
+/* ---------- 1. 全体 ---------- */
+.q-body {
+  font-size: 16px;   /* スマートフォンで文字が小さくなりすぎないように */
+}
+
+/* iPhone は文字サイズ 16px 未満の入力欄を選ぶと画面が拡大されるため、16px にそろえる */
+.q-body .form-control {
+  max-width: none;
+  min-height: 46px;
+  font-size: 16px;
+}
+
+/* 生年月日の「年」「月」「日」プルダウン（年だけ少し広く） */
+.q-date-select {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 8px;
+  max-width: 360px;
+}
+
+.q-header-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.q-header-sub {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.q-container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+/* ---------- 2. 進み具合（1 入力 → 2 確認 → 3 完了） ---------- */
+.q-steps {
+  display: flex;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+  overflow: hidden;
+}
+
+.q-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  font-size: 14px;
+  color: var(--color-text-sub);
+  border-right: 1px solid var(--color-border);
+}
+
+.q-step:last-child {
+  border-right: none;
+}
+
+.q-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+}
+
+.q-step.is-current {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.q-step.is-current .q-step-num {
+  border-color: #fff;
+}
+
+.q-step.is-done {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* ---------- 3. 説明文 ---------- */
+.q-intro {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius);
+  font-size: 15px;
+}
+
+.q-intro p {
+  margin: 0 0 6px;
+}
+
+.q-intro p:last-child {
+  margin-bottom: 0;
+}
+
+.q-demo {
+  margin-bottom: 16px;
+}
+
+/* 上部にまとめて表示するエラー一覧 */
+.q-error-list {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+/* ---------- 4. 質問のまとまり ---------- */
+.q-section {
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.q-section-title {
+  padding: 10px 16px;
+  font-size: 16px;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.q-section-note {
+  margin: 12px 16px 0;
+  font-size: 14px;
+  color: var(--color-text-sub);
+}
+
+/* fieldset はブラウザ標準の枠線を消して、他の質問と同じ見た目にする */
+.q-item {
+  margin: 0;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid #eceef1;
+  min-width: 0;
+}
+
+.q-item:last-child {
+  border-bottom: none;
+}
+
+/* fieldset の見出し（legend）は、ブラウザ標準では枠線の上に重なって表示される。
+   float を付けると普通の見出しと同じように枠の内側に入り、エラー時の背景色も見出しまで届く */
+legend.q-label {
+  float: left;
+  width: 100%;
+}
+
+legend.q-label + * {
+  clear: both;
+}
+
+.q-label {
+  display: block;
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.q-multi {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 2px;
+  vertical-align: 1px;
+}
+
+/* エラーのある質問は左端を赤くする */
+.q-item.has-error {
+  background: var(--color-danger-bg);
+  box-shadow: inset 4px 0 0 var(--color-danger);
+}
+
+/* ---------- 5. 選択肢（チェックボックス・ラジオボタン） ----------
+   指で押しやすいよう、文字だけでなく枠全体を押せるようにしている */
+.q-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.q-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.q-option input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+/* 選んだ選択肢は色を変えて分かりやすくする（:has は「中に〇〇を含む」という意味） */
+.q-option:has(input:checked) {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.q-option:has(input:focus-visible) {
+  outline: 2px solid #5b8ac4;
+  outline-offset: 1px;
+}
+
+/* 「その他」を選んだときなどに表示される追加入力欄 */
+.q-sub {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+}
+
+.q-sub .q-options {
+  margin-bottom: 10px;
+}
+
+.q-sub-label {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--color-text-sub);
+}
+
+/* ---------- 6. ボタン ---------- */
+.q-actions {
+  margin-top: 8px;
+}
+
+.q-btn-main {
+  width: 100%;
+  min-height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.q-actions-confirm {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+.q-btn-main:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ---------- 7. 確認画面 ---------- */
+.q-confirm-section {
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.q-confirm-list {
+  margin: 0;
+}
+
+.q-confirm-row {
+  padding: 10px 16px;
+  border-bottom: 1px solid #eceef1;
+}
+
+.q-confirm-row:last-child {
+  border-bottom: none;
+}
+
+.q-confirm-row dt {
+  font-size: 13px;
+  color: var(--color-text-sub);
+}
+
+.q-confirm-row dd {
+  margin: 2px 0 0;
+  white-space: pre-wrap;     /* 自由記入欄の改行をそのまま表示 */
+  word-break: break-all;
+}
+
+.q-empty {
+  color: var(--color-text-sub);
+}
+
+/* ---------- 8. 完了画面 ---------- */
+.q-complete {
+  padding: 32px 20px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-top: 4px solid var(--color-primary);
+  border-radius: var(--radius);
+}
+
+.q-complete-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.q-complete-text {
+  margin: 0;
+  font-size: 17px;
+}
+
+/* ---------- 9. 画面が広いとき（タブレット・パソコン） ---------- */
+@media (min-width: 520px) {
+  .q-options {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .q-options-single {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* なし／あり・性別など短い選択肢は横に並べる（スマートフォンでは1行に2つ、広い画面では1行に並べる） */
+.q-options-row {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.q-options-row .q-option {
+  white-space: nowrap;
+}
