@@ -12,8 +12,8 @@
      4. 入力内容の読み取り
      5. 入力チェック
      6. 確認画面
-     7. 送信
-     8. 画面の切り替え
+     7. 送信（Supabase の Edge Function へ）
+     8. 画面の切り替え・端末の設定
      9. テスト用の架空データ
     10. 初期化
    ========================================================= */
@@ -25,6 +25,9 @@
    --------------------------------------------------------- */
 
 let currentAnswers = null; // 確認画面に表示中の回答（「送信する」で送る内容）
+
+// 端末パスワードを、この端末のブラウザに保存するときの名前（キー）
+const DEVICE_PASSWORD_KEY = 'dentalClinic_devicePassword';
 
 
 /* ---------------------------------------------------------
@@ -407,12 +410,45 @@ function handleFormSubmit(event) {
 
 
 /* ---------------------------------------------------------
-   7. 送信
-   このブラウザの localStorage に保存し、同じブラウザで開いた管理画面の「問診票受付」に表示する。
-   （患者さん自身のスマートフォンから送る場合は、共有データベースへの送信に置き換える必要がある）
+   7. 送信（Supabase の Edge Function へ）
+   回答と端末パスワードを Edge Function（submit-questionnaire）に送る。
+   Edge Function がパスワード・内容を確認して、データベースに保存する。
+   受付日時・受付状況（未確認）はデータベース側で付けられる。
    --------------------------------------------------------- */
 
-function sendQuestionnaire() {
+// 送信できなかったときのメッセージ（Edge Function から返ってくるエラーの種類ごと）
+const SEND_ERROR_MESSAGES = {
+  bad_password: '端末の設定に問題があるため、送信できませんでした。お手数ですが、受付スタッフにお声がけください。',
+  rate_limited: '現在、送信が集中しています。しばらく待ってから、もう一度「送信する」を押してください。',
+  invalid: '入力内容を送信できませんでした。お手数ですが、受付スタッフにお声がけください。',
+  network: '通信できませんでした。インターネットの接続を確認して、もう一度「送信する」を押してください。',
+  other: '送信できませんでした。お手数ですが、受付スタッフにお声がけください。'
+};
+
+/**
+ * Edge Function に回答を送る。
+ * 結果を { ok: true } または { ok: false, error: 'エラーの種類' } で返す。
+ * （async / await：通信の結果が返ってくるまで待ってから、次の行に進む書き方）
+ */
+async function postQuestionnaire(answers) {
+  try {
+    const response = await fetch(QUESTIONNAIRE_SUBMIT_URL, {   // supabase-config.js
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: getDevicePassword(), answers: answers })
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (response.ok && data.ok) {
+      return { ok: true };
+    }
+    return { ok: false, error: data.error || 'other' };
+  } catch (e) {
+    // インターネットにつながっていない など
+    return { ok: false, error: 'network' };
+  }
+}
+
+async function sendQuestionnaire() {
   if (!currentAnswers) {
     showStep('input');
     return;
@@ -421,26 +457,18 @@ function sendQuestionnaire() {
   const sendButton = document.getElementById('btnSend');
   const sendError = document.getElementById('sendError');
   sendButton.disabled = true;   // 二重送信の防止
+  sendButton.textContent = '送信中…';
   sendError.hidden = true;
 
-  // 送信するデータ（受付日時と受付状況を付ける）
-  const record = {
-    id: 'Q' + Date.now(),                    // 受付ID（送信した時刻から作る）
-    submittedAt: new Date().toISOString(),   // 受付日時
-    status: 'unconfirmed',                   // 受付状況：未確認
-    patientId: null,                         // 患者として登録したときに、患者IDが入る
-    answers: currentAnswers
-  };
+  const result = await postQuestionnaire(currentAnswers);
 
-  try {
-    const list = readQuestionnaireList();    // questionnaire-common.js
-    list.push(record);
-    writeQuestionnaireList(list);
-  } catch (e) {
-    // 既存のデータは上書きせず、送信できなかったことだけを伝える
-    sendError.textContent = '送信できませんでした。お手数ですが、受付スタッフにお声がけください。';
+  sendButton.disabled = false;
+  sendButton.textContent = '送信する';
+
+  if (!result.ok) {
+    // 入力内容は消さずに確認画面のまま。もう一度「送信する」を押せる
+    sendError.textContent = SEND_ERROR_MESSAGES[result.error] || SEND_ERROR_MESSAGES.other;
     sendError.hidden = false;
-    sendButton.disabled = false;
     return;
   }
 
@@ -450,7 +478,6 @@ function sendQuestionnaire() {
   updateBirthDayOptions();
   document.getElementById('confirmContent').innerHTML = '';
   currentAnswers = null;
-  sendButton.disabled = false;
 
   showStep('complete');
 }
@@ -463,6 +490,8 @@ function sendQuestionnaire() {
 const STEP_ORDER = ['input', 'confirm', 'complete'];
 
 function showStep(stepName) {
+  document.getElementById('step-setup').hidden = true;
+  document.getElementById('stepIndicator').hidden = false;
   STEP_ORDER.forEach(function (name) {
     document.getElementById('step-' + name).hidden = (name !== stepName);
   });
@@ -476,6 +505,50 @@ function showStep(stepName) {
   });
 
   window.scrollTo(0, 0);
+}
+
+
+/* ----- 端末の設定（スタッフ用） ----- */
+
+/** この端末に保存されている端末パスワード（無ければ空文字） */
+function getDevicePassword() {
+  try {
+    return localStorage.getItem(DEVICE_PASSWORD_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+/** 端末の設定画面を表示する（問診票の画面は隠す） */
+function showSetup() {
+  STEP_ORDER.forEach(function (name) {
+    document.getElementById('step-' + name).hidden = true;
+  });
+  document.getElementById('stepIndicator').hidden = true;
+  document.getElementById('step-setup').hidden = false;
+  document.getElementById('q-devicePassword').value = '';
+  document.getElementById('setupError').textContent = '';
+}
+
+/** 「設定を保存」：端末パスワードをこの端末に保存して、問診票の画面に進む */
+function saveDeviceSetting() {
+  const password = document.getElementById('q-devicePassword').value.trim();
+  const errorBox = document.getElementById('setupError');
+  if (password === '') {
+    errorBox.textContent = '端末パスワードを入力してください。';
+    return;
+  }
+  try {
+    localStorage.setItem(DEVICE_PASSWORD_KEY, password);
+  } catch (e) {
+    errorBox.textContent = 'この端末に保存できませんでした。ブラウザの設定（プライベートブラウズなど）を確認してください。';
+    return;
+  }
+  document.getElementById('q-devicePassword').value = '';
+
+  // URL の ?setup=1 を外して、問診票の画面を表示する
+  window.history.replaceState(null, '', window.location.pathname);
+  showStep('input');
 }
 
 
@@ -548,6 +621,7 @@ function init() {
     showStep('input');
   });
   document.getElementById('btnSend').addEventListener('click', sendQuestionnaire);
+  document.getElementById('btnSaveDevice').addEventListener('click', saveDeviceSetting);
 
   // ?demo=1 のときだけテスト用ボタンを表示
   if (new URLSearchParams(window.location.search).get('demo') === '1') {
@@ -556,7 +630,14 @@ function init() {
   }
 
   updateConditionalFields();
-  showStep('input');
+
+  // 端末パスワードが未設定、または ?setup=1 のときは、端末の設定画面を表示する
+  const params = new URLSearchParams(window.location.search);
+  if (getDevicePassword() === '' || params.get('setup') === '1') {
+    showSetup();
+  } else {
+    showStep('input');
+  }
 }
 
 // HTML の読み込みが終わったら init() を実行する

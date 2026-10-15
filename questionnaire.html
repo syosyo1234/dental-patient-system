@@ -25,8 +25,32 @@
 
   <main class="q-container">
 
+    <!-- =====================================================
+         端末の設定（スタッフ用）
+         この端末に端末パスワードが保存されていないとき、または URL に ?setup=1 を付けたときに表示する。
+         パスワードはこの端末のブラウザにだけ保存し、正しいかどうかは送信時にサーバーで確認する。
+         ===================================================== -->
+    <section id="step-setup" hidden>
+      <div class="q-intro">
+        <p><strong>この端末は、問診票を送信する設定がされていません。</strong><br>
+        お手数ですが、受付スタッフにお声がけください。</p>
+      </div>
+      <section class="q-section">
+        <h2 class="q-section-title">端末の設定（スタッフ用）</h2>
+        <div class="q-item">
+          <label for="q-devicePassword" class="q-label">端末パスワード</label>
+          <input type="password" id="q-devicePassword" class="form-control" autocomplete="off">
+          <p class="field-error" id="setupError"></p>
+          <p class="field-hint">この端末に保存されます。パスワードが正しいかどうかは、問診票を送信したときに確認されます。</p>
+        </div>
+      </section>
+      <div class="q-actions">
+        <button type="button" id="btnSaveDevice" class="btn btn-primary q-btn-main">設定を保存</button>
+      </div>
+    </section>
+
     <!-- 進み具合の表示（① 入力 → ② 確認 → ③ 完了） -->
-    <ol class="q-steps" aria-label="入力の流れ">
+    <ol class="q-steps" id="stepIndicator" aria-label="入力の流れ">
       <li class="q-step is-current" data-step="input"><span class="q-step-num">1</span>入力</li>
       <li class="q-step" data-step="confirm"><span class="q-step-num">2</span>確認</li>
       <li class="q-step" data-step="complete"><span class="q-step-num">3</span>完了</li>
@@ -335,7 +359,8 @@
 
   </main>
 
-  <!-- 読み込み順が大切：先に共通処理、次に問診票の処理 -->
+  <!-- 読み込み順が大切：接続先 → 共通処理 → 問診票の処理 -->
+  <script src="supabase-config.js"></script>
   <script src="questionnaire-common.js"></script>
   <script src="questionnaire.js"></script>
 </body>
