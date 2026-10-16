@@ -12,7 +12,12 @@
   <header class="app-header">
     <div class="app-header-inner">
       <h1 class="app-title">患者管理システム</h1>
-      <div class="app-header-date" id="headerDate"></div>
+      <div class="app-header-right">
+        <div class="app-header-date" id="headerDate"></div>
+        <!-- ログイン中のみ表示 -->
+        <span class="header-user" id="headerUser" hidden></span>
+        <button type="button" class="header-logout" id="btnLogout" hidden>ログアウト</button>
+      </div>
     </div>
   </header>
 
@@ -27,7 +32,29 @@
     <!-- =====================================================
          画面1：患者一覧
          ===================================================== -->
-    <section id="view-list" class="view">
+    <!-- =====================================================
+         ログイン画面（スタッフ用。ログインするまで他の画面は表示しない）
+         ===================================================== -->
+    <section id="view-login" class="view" hidden>
+      <div class="panel login-panel">
+        <h2 class="page-title">スタッフログイン</h2>
+        <p class="login-note">患者管理システムを利用するには、スタッフ用のアカウントでログインしてください。</p>
+        <div id="loginError" class="alert alert-error" hidden></div>
+        <form id="loginForm" novalidate>
+          <div class="login-row">
+            <label for="loginEmail" class="form-label">メールアドレス</label>
+            <input type="email" id="loginEmail" class="form-control" autocomplete="username">
+          </div>
+          <div class="login-row">
+            <label for="loginPassword" class="form-label">パスワード</label>
+            <input type="password" id="loginPassword" class="form-control" autocomplete="current-password">
+          </div>
+          <button type="submit" id="btnLogin" class="btn btn-primary login-button">ログイン</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="view-list" class="view" hidden>
       <div class="page-header">
         <h2 class="page-title">患者一覧</h2>
         <div class="page-actions">
@@ -333,7 +360,10 @@
 
       <div class="page-header">
         <h2 class="page-title">問診票受付</h2>
-        <a href="questionnaire.html" target="_blank" class="btn btn-secondary">患者用の問診票を開く</a>
+        <div class="page-actions">
+          <a href="questionnaire.html" target="_blank" class="btn btn-secondary">患者用の問診票を開く</a>
+          <button type="button" id="btnRefreshQuestionnaires" class="btn btn-primary">最新の情報に更新</button>
+        </div>
       </div>
 
       <div id="questionnaireError" class="alert alert-error" hidden></div>
@@ -379,6 +409,9 @@
   </main>
 
   <!-- 読み込み順が大切：デモデータ → 問診票の共通処理 → アプリ本体 -->
+  <!-- Supabase の公式ライブラリ（ログイン・問診票の読み書きに使用） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+  <script src="supabase-config.js"></script>
   <script src="data.js"></script>
   <script src="questionnaire-common.js"></script>
   <script src="app.js"></script>

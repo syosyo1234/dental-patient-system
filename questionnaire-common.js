@@ -2,18 +2,14 @@
    問診票の共通処理 - questionnaire-common.js
 
    患者側（questionnaire.html）と管理側（index.html）の両方で読み込む。
-     - 問診票の保存場所（localStorage のキー）と読み書き
      - 受付状況の表示名
      - 回答の表示方法（確認画面・管理画面で同じ表示にするため）
 
-   ※ 問診票の保存先を将来データベースに変える場合は、
-     readQuestionnaireList / writeQuestionnaireList を中心に書き換える。
+   ※ 問診票の保存先は Supabase。
+     送信は questionnaire.js（Edge Function 経由）、受信・更新は app.js で行う。
    ========================================================= */
 
 'use strict';
-
-// 問診票を保存する localStorage のキー（患者データ dentalClinic_patients などとは別）
-const STORAGE_KEY_QUESTIONNAIRES = 'dentalClinic_questionnaires';
 
 // 受付状況（保存する値 → 画面に表示する名前）
 const QUESTIONNAIRE_STATUS = {
@@ -21,25 +17,6 @@ const QUESTIONNAIRE_STATUS = {
   confirmed: '確認済み',
   registered: '患者登録済み'
 };
-
-/**
- * 保存されている問診票の一覧を読み込む。
- * 読み込めない・形式が正しくない場合はエラーを投げる（呼び出し側で try/catch する）。
- */
-function readQuestionnaireList() {
-  const text = localStorage.getItem(STORAGE_KEY_QUESTIONNAIRES);
-  const list = text ? JSON.parse(text) : [];
-  if (!Array.isArray(list)) {
-    throw new Error('問診票データの形式が正しくありません');
-  }
-  return list;
-}
-
-/** 問診票の一覧を保存する（失敗した場合はエラーを投げる） */
-function writeQuestionnaireList(list) {
-  localStorage.setItem(STORAGE_KEY_QUESTIONNAIRES, JSON.stringify(list));
-}
-
 
 /* ---------- 回答の表示用 ---------- */
 

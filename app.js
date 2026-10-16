@@ -13,9 +13,10 @@
      9. 画面3：患者詳細（基本情報・来院履歴・費用集計）
     10. 画面4：来院記録の追加・編集フォーム
     11. 来院記録の削除
-    12. 画面5・6：問診票受付（問診票の確認・患者登録）
-    13. デモデータに戻す
-    14. 初期化（ページを開いたときに最初に実行）
+    12. 画面5・6：問診票受付（Supabase から取得・確認・患者登録）
+    13. スタッフログイン（Supabase Authentication）
+    14. デモデータに戻す
+    15. 初期化（ページを開いたときに最初に実行）
    ========================================================= */
 
 'use strict';
@@ -342,7 +343,7 @@ function getDoctorNames() {
    5. 画面の切り替え・メッセージ表示
    --------------------------------------------------------- */
 
-const VIEW_NAMES = ['list', 'patient-form', 'detail', 'visit-form', 'questionnaires', 'questionnaire-detail'];
+const VIEW_NAMES = ['login', 'list', 'patient-form', 'detail', 'visit-form', 'questionnaires', 'questionnaire-detail'];
 
 /** 指定した画面だけを表示する */
 function showView(viewName) {
@@ -1034,49 +1035,94 @@ function deleteVisit() {
 
 
 /* ---------------------------------------------------------
-   12. 画面5・6：問診票受付（問診票の確認・患者登録）
+   12. 画面5・6：問診票受付（Supabase から取得・確認・患者登録）
 
-   患者さんが questionnaire.html で送信した問診票は、
-   questionnaire-common.js の readQuestionnaireList / writeQuestionnaireList で読み書きする。
-   患者さんが別のタブ（受付のタブレットなど）で送信することもあるため、
-   表示や変更の直前に毎回読み込み直す（古いデータで上書きしないため）。
+   問診票は Supabase の questionnaires テーブルにある。
+   ログインしたスタッフ（clinic_staff に登録された人）だけが読み書きできる（Supabase の RLS で制限）。
+   新しい問診票は「最新の情報に更新」ボタンで取得する。
 
-   問診票 1 件のデータ：
+   画面で使う問診票 1 件のデータ：
      { id, submittedAt, status, patientId, answers }
      status：'unconfirmed'（未確認）→ 'confirmed'（確認済み）→ 'registered'（患者登録済み）
-     patientId：患者として登録・紐付けしたときの患者ID
+     patientId：患者として登録・紐付けしたときの患者ID（患者データはこのパソコンの localStorage）
    --------------------------------------------------------- */
 
-/** 問診票の一覧を読み込む。失敗したらエラーを表示して null を返す */
-function loadQuestionnaires() {
-  const errorBox = document.getElementById('questionnaireError');
-  try {
-    const list = readQuestionnaireList();
-    errorBox.hidden = true;
-    return list;
-  } catch (e) {
-    // 壊れたデータでも勝手に消したり上書きしたりしない
-    errorBox.textContent = '問診票データの読み込みに失敗しました。データを保護するため、問診票の操作を停止しています。（詳細：' + e.message + '）';
-    errorBox.hidden = false;
-    return null;
-  }
+let questionnaires = [];   // Supabase から取得した問診票（新しい順）
+
+const QUESTIONNAIRE_COLUMNS = 'id, submitted_at, status, answers, patient_id';
+
+/** データベースの 1 行を、画面で使う形に変換する */
+function toQuestionnaire(row) {
+  return {
+    id: row.id,
+    submittedAt: row.submitted_at,
+    status: row.status,
+    patientId: row.patient_id,
+    answers: row.answers || {}
+  };
 }
 
-/** 問診票の一覧を保存する。成功したら true */
-function saveQuestionnaires(list) {
-  try {
-    writeQuestionnaireList(list);
-    return true;
-  } catch (e) {
-    alert('問診票データの保存に失敗しました。ブラウザの保存容量や設定を確認してください。');
+/** Supabase から問診票の一覧を取得する。成功したら true */
+async function fetchQuestionnaires() {
+  const errorBox = document.getElementById('questionnaireError');
+  const { data, error } = await supabaseClient
+    .from('questionnaires')
+    .select(QUESTIONNAIRE_COLUMNS)
+    .order('submitted_at', { ascending: false });
+
+  if (error) {
+    errorBox.textContent = '問診票を取得できませんでした。通信状態を確認して、「最新の情報に更新」を押してください。（' + error.message + '）';
+    errorBox.hidden = false;
     return false;
   }
+  errorBox.hidden = true;
+  questionnaires = data.map(toQuestionnaire);
+  updateQuestionnaireBadge();
+  return true;
 }
 
-function findQuestionnaire(list, questionnaireId) {
-  return list.find(function (q) {
+/** 1 件だけ最新の状態を取得する（登録の直前に、すでに登録済みになっていないか確認するため） */
+async function fetchQuestionnaire(questionnaireId) {
+  const { data, error } = await supabaseClient
+    .from('questionnaires')
+    .select(QUESTIONNAIRE_COLUMNS)
+    .eq('id', questionnaireId)
+    .maybeSingle();
+  return (error || !data) ? null : toQuestionnaire(data);
+}
+
+/** 問診票の受付状況などを Supabase で更新する。成功したら true */
+async function updateQuestionnaire(questionnaireId, fields) {
+  const { data, error } = await supabaseClient
+    .from('questionnaires')
+    .update(fields)
+    .eq('id', questionnaireId)
+    .select('id');
+  // 権限がない場合は、エラーにならずに「0 件更新」になることがあるため、件数も確認する
+  if (error || !data || data.length !== 1) {
+    alert('問診票を更新できませんでした。通信状態とログイン状態を確認してください。');
+    return false;
+  }
+  return true;
+}
+
+function findQuestionnaire(questionnaireId) {
+  return questionnaires.find(function (q) {
     return q.id === questionnaireId;
   });
+}
+
+/** 取得し直した問診票で、手元の一覧の該当行を置き換える */
+function replaceQuestionnaire(q) {
+  const index = questionnaires.findIndex(function (item) {
+    return item.id === q.id;
+  });
+  if (index === -1) {
+    questionnaires.unshift(q);
+  } else {
+    questionnaires[index] = q;
+  }
+  updateQuestionnaireBadge();
 }
 
 /** "2026-10-09T05:05:00.000Z" → "2026/10/09 14:05"（パソコンの時刻で表示） */
@@ -1105,16 +1151,11 @@ function statusBadgeHtml(status) {
     escapeHtml(QUESTIONNAIRE_STATUS[status] || status) + '</span>';
 }
 
-/** 患者一覧の「問診票受付」ボタンに、未確認の件数を表示する */
+/** 患者一覧の「問診票受付」ボタンに、未確認の件数を表示する（最後に取得した内容から数える） */
 function updateQuestionnaireBadge() {
-  let count = 0;
-  try {
-    count = readQuestionnaireList().filter(function (q) {
-      return q.status === 'unconfirmed';
-    }).length;
-  } catch (e) {
-    count = 0;
-  }
+  const count = questionnaires.filter(function (q) {
+    return q.status === 'unconfirmed';
+  }).length;
   const badge = document.getElementById('questionnaireBadge');
   badge.textContent = '未確認 ' + count;
   badge.hidden = (count === 0);
@@ -1122,31 +1163,32 @@ function updateQuestionnaireBadge() {
 
 /* ----- 画面5：問診票の一覧 ----- */
 
-function showQuestionnaireList() {
+async function showQuestionnaireList() {
   showView('questionnaires');
+  renderQuestionnaireList();          // まず手元の内容を表示し、
+  await refreshQuestionnaireList();   // 最新の内容を取得して表示し直す
+}
+
+/** 「最新の情報に更新」 */
+async function refreshQuestionnaireList() {
+  const button = document.getElementById('btnRefreshQuestionnaires');
+  button.disabled = true;
+  button.textContent = '更新中…';
+  await fetchQuestionnaires();
+  button.disabled = false;
+  button.textContent = '最新の情報に更新';
   renderQuestionnaireList();
 }
 
 function renderQuestionnaireList() {
   const tbody = document.getElementById('questionnaireTableBody');
-  const list = loadQuestionnaires();
-  if (list === null) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">問診票を表示できません。</td></tr>';
-    return;
-  }
-
-  // 新しい順に並べる（元の配列は変えないよう slice() でコピーしてから並べ替える）
-  const sorted = list.slice().sort(function (a, b) {
-    return a.submittedAt < b.submittedAt ? 1 : -1;
-  });
-
-  if (sorted.length === 0) {
+  if (questionnaires.length === 0) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="5">受信した問診票はまだありません。</td></tr>';
     return;
   }
 
-  tbody.innerHTML = sorted.map(function (q) {
-    const a = q.answers || {};
+  tbody.innerHTML = questionnaires.map(function (q) {
+    const a = q.answers;
     const registeredText = (q.status === 'registered' && q.patientId)
       ? '<span class="status-patient">' + escapeHtml(q.patientId) + '</span>'
       : '';
@@ -1164,28 +1206,28 @@ function renderQuestionnaireList() {
 /* ----- 画面6：問診票の内容確認・患者登録 ----- */
 
 /** 問診票を開く。未確認のものは、開いた時点で「確認済み」にする */
-function openQuestionnaireDetail(questionnaireId) {
-  const list = loadQuestionnaires();
-  if (list === null) {
-    showQuestionnaireList();
-    return;
-  }
-  const q = findQuestionnaire(list, questionnaireId);
+async function openQuestionnaireDetail(questionnaireId) {
+  const q = findQuestionnaire(questionnaireId);
   if (!q) {
     showQuestionnaireList();
     showFlash('問診票が見つかりません。', 'error');
     return;
   }
 
-  if (q.status === 'unconfirmed') {
-    q.status = 'confirmed';
-    q.confirmedAt = new Date().toISOString();
-    saveQuestionnaires(list);
-  }
-
   currentQuestionnaireId = questionnaireId;
   showView('questionnaire-detail');
   renderQuestionnaireDetail(q);
+
+  if (q.status === 'unconfirmed') {
+    const ok = await updateQuestionnaire(q.id, { status: 'confirmed', confirmed_at: new Date().toISOString() });
+    if (ok) {
+      q.status = 'confirmed';
+      updateQuestionnaireBadge();
+      if (currentQuestionnaireId === q.id) {
+        renderQuestionnaireDetail(q);
+      }
+    }
+  }
 }
 
 /**
@@ -1203,13 +1245,12 @@ function findDuplicatePatients(answers) {
 }
 
 function renderQuestionnaireDetail(q) {
-  const a = q.answers || {};
+  const a = q.answers;
   document.getElementById('questionnaireDetailTitle').textContent = '問診票の内容：' + (a.name || '');
 
   // --- 上部：受付情報と操作 ---
   let html =
     '<dl class="q-meta">' +
-      '<div><dt>受付ID</dt><dd>' + escapeHtml(q.id) + '</dd></div>' +
       '<div><dt>受付日時</dt><dd>' + formatDateTime(q.submittedAt) + '</dd></div>' +
       '<div><dt>受付状況</dt><dd>' + statusBadgeHtml(q.status) + '</dd></div>' +
     '</dl>';
@@ -1219,7 +1260,7 @@ function renderQuestionnaireDetail(q) {
     html += patient
       ? '<div class="alert alert-success q-action-box">この問診票は、患者「' + escapeHtml(patient.name) + '」（' + escapeHtml(patient.id) + '）に登録済みです。' +
           '<button type="button" class="btn btn-sm btn-secondary" data-open-patient="' + escapeHtml(patient.id) + '">患者詳細を表示</button></div>'
-      : '<div class="alert alert-error">登録先の患者（' + escapeHtml(q.patientId) + '）が見つかりません。</div>';
+      : '<div class="alert alert-error">登録先の患者（' + escapeHtml(q.patientId) + '）が、このパソコンの患者データに見つかりません。</div>';
   } else {
     const duplicates = findDuplicatePatients(a);
     if (duplicates.length > 0) {
@@ -1271,22 +1312,26 @@ function buildNoteFromQuestionnaire(q) {
   return lines.join('\n');
 }
 
-/** 「患者として登録」：問診票の基本情報から新しい患者を作り、問診票と紐付ける */
-function registerPatientFromQuestionnaire() {
-  const list = loadQuestionnaires();
-  if (list === null) {
-    return;
+/** 登録・紐付けの直前に、最新の状態を取得する（すでに登録済みなら null） */
+async function getLatestUnregistered(questionnaireId) {
+  const latest = await fetchQuestionnaire(questionnaireId);
+  if (!latest) {
+    alert('問診票を取得できませんでした。通信状態を確認して、もう一度お試しください。');
+    return null;
   }
-  const q = findQuestionnaire(list, currentQuestionnaireId);
-  if (!q) {
-    showQuestionnaireList();
-    showFlash('問診票が見つかりません。', 'error');
-    return;
-  }
-  // 別のタブで既に登録されていた場合は、二重に登録しない
-  if (q.status === 'registered') {
-    renderQuestionnaireDetail(q);
+  replaceQuestionnaire(latest);
+  if (latest.status === 'registered') {
+    renderQuestionnaireDetail(latest);
     showFlash('この問診票は既に患者登録済みです。', 'error');
+    return null;
+  }
+  return latest;
+}
+
+/** 「患者として登録」：問診票の基本情報から新しい患者を作り、問診票と紐付ける */
+async function registerPatientFromQuestionnaire() {
+  const q = await getLatestUnregistered(currentQuestionnaireId);
+  if (!q) {
     return;
   }
 
@@ -1315,7 +1360,7 @@ function registerPatientFromQuestionnaire() {
     updatedAt: now
   };
 
-  // ① 患者を保存
+  // ① 患者を保存（このパソコンの localStorage）
   const issuedBackup = copyData(lastIssued);
   patients.push(newPatient);
   markIdIssued(newPatient.id);
@@ -1325,31 +1370,30 @@ function registerPatientFromQuestionnaire() {
     return;
   }
 
-  // ② 問診票に患者IDを記録して保存（失敗したら①も取り消して、元の状態に戻す）
-  q.status = 'registered';
-  q.patientId = newPatient.id;
-  q.registeredAt = now;
-  if (!saveQuestionnaires(list)) {
+  // ② Supabase の問診票に患者IDを記録（失敗したら①も取り消して、元の状態に戻す）
+  const ok = await updateQuestionnaire(q.id, { status: 'registered', patient_id: newPatient.id, registered_at: now });
+  if (!ok) {
     patients.pop();
     lastIssued = issuedBackup;
     saveData();
     return;
   }
+  q.status = 'registered';
+  q.patientId = newPatient.id;
+  updateQuestionnaireBadge();
 
   openPatientDetail(newPatient.id);
   showFlash('問診票の内容から患者「' + newPatient.name + '」を登録しました。（患者ID：' + newPatient.id + '）', 'success');
 }
 
 /** 「この患者に紐付ける」：既存の患者に問診票を紐付ける（患者の基本情報は変更しない） */
-function linkQuestionnaireToPatient(patientId) {
-  const list = loadQuestionnaires();
+async function linkQuestionnaireToPatient(patientId) {
   const patient = findPatient(patientId);
-  if (list === null || !patient) {
+  if (!patient) {
     return;
   }
-  const q = findQuestionnaire(list, currentQuestionnaireId);
-  if (!q || q.status === 'registered') {
-    showQuestionnaireList();
+  const q = await getLatestUnregistered(currentQuestionnaireId);
+  if (!q) {
     return;
   }
 
@@ -1358,33 +1402,24 @@ function linkQuestionnaireToPatient(patientId) {
     return;
   }
 
-  q.status = 'registered';
-  q.patientId = patient.id;
-  q.registeredAt = new Date().toISOString();
-  if (!saveQuestionnaires(list)) {
+  const updated = await updateQuestionnaire(q.id, { status: 'registered', patient_id: patient.id, registered_at: new Date().toISOString() });
+  if (!updated) {
     return;
   }
+  q.status = 'registered';
+  q.patientId = patient.id;
+  updateQuestionnaireBadge();
 
   openPatientDetail(patient.id);
   showFlash('問診票を患者「' + patient.name + '」（' + patient.id + '）に紐付けました。', 'success');
 }
 
-/* ----- 患者詳細の「初診問診票」欄 ----- */
+/* ----- 患者詳細の「初診問診票」欄（最後に取得した問診票から表示） ----- */
 
 function renderPatientQuestionnaires(patientId) {
   const box = document.getElementById('patientQuestionnaires');
-  let list;
-  try {
-    list = readQuestionnaireList();
-  } catch (e) {
-    box.innerHTML = '<p class="empty-note">問診票データを読み込めませんでした。</p>';
-    return;
-  }
-
-  const linked = list.filter(function (q) {
+  const linked = questionnaires.filter(function (q) {
     return q.patientId === patientId;
-  }).sort(function (a, b) {
-    return a.submittedAt < b.submittedAt ? 1 : -1;
   });
 
   if (linked.length === 0) {
@@ -1405,12 +1440,111 @@ function renderPatientQuestionnaires(patientId) {
 
 
 /* ---------------------------------------------------------
-   13. デモデータに戻す
+   13. スタッフログイン（Supabase Authentication）
+   ・メールアドレスとパスワードでログインする
+   ・ログイン後、clinic_staff に登録されているか確認し、登録されていなければ使えない
+   ・ログインするまで、患者一覧などの画面は表示しない
+   --------------------------------------------------------- */
+
+let supabaseClient = null;   // Supabase と通信するための道具（ログイン状態もここで管理される）
+
+/** ログイン画面を表示する（message があればエラーとして表示） */
+function showLoginView(message) {
+  showView('login');
+  document.getElementById('headerUser').hidden = true;
+  document.getElementById('btnLogout').hidden = true;
+  const box = document.getElementById('loginError');
+  box.textContent = message || '';
+  box.hidden = !message;
+}
+
+/** ログイン中のユーザーが clinic_staff に登録されているか（自分の行だけ読める設定になっている） */
+async function isClinicStaff(user) {
+  const { data, error } = await supabaseClient
+    .from('clinic_staff')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  return !error && !!data;
+}
+
+/** ログイン済みのユーザーで、システムを開始する */
+async function startForUser(user) {
+  if (!(await isClinicStaff(user))) {
+    await supabaseClient.auth.signOut();
+    showLoginView('このアカウントには、患者管理システムを利用する権限がありません。');
+    return;
+  }
+
+  document.getElementById('headerUser').textContent = user.email;
+  document.getElementById('headerUser').hidden = false;
+  document.getElementById('btnLogout').hidden = false;
+
+  loadData();          // 患者・来院記録（このパソコンの localStorage）
+  showListView();
+  fetchQuestionnaires(); // 問診票の未確認件数をボタンに表示する（取得を待たずに画面を表示）
+}
+
+/** 「ログイン」ボタン */
+async function handleLogin(event) {
+  event.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (email === '' || password === '') {
+    showLoginView('メールアドレスとパスワードを入力してください。');
+    return;
+  }
+
+  const button = document.getElementById('btnLogin');
+  button.disabled = true;
+  button.textContent = 'ログイン中…';
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+  button.disabled = false;
+  button.textContent = 'ログイン';
+
+  if (error) {
+    showLoginView('ログインできませんでした。メールアドレス・パスワード、または通信状態を確認してください。');
+    return;
+  }
+  document.getElementById('loginPassword').value = '';
+  await startForUser(data.user);
+}
+
+/** 「ログアウト」ボタン */
+async function handleLogout() {
+  await supabaseClient.auth.signOut();
+  questionnaires = [];   // 取得した問診票を画面から消す
+  currentPatientId = null;
+  currentQuestionnaireId = null;
+  showLoginView('');
+}
+
+/** ページを開いたとき：ログイン済みならそのまま開始、そうでなければログイン画面 */
+async function startAuth() {
+  if (!window.supabase || !SUPABASE_PUBLISHABLE_KEY) {
+    showLoginView('Supabase に接続できません。インターネット接続と、supabase-config.js の設定（publishable key）を確認してください。');
+    document.getElementById('btnLogin').disabled = true;
+    return;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) {
+    await startForUser(data.session.user);
+  } else {
+    showLoginView('');
+  }
+}
+
+
+/* ---------------------------------------------------------
+   14. デモデータに戻す
    --------------------------------------------------------- */
 
 function resetToDemoData() {
   const ok = confirm(
-    '現在のすべての患者情報・来院記録・問診票を削除し、デモデータ（初期状態）に戻します。\n' +
+    'このパソコンの患者情報・来院記録を削除し、デモデータ（初期状態）に戻します。\n' +
+    '（Supabase に保存された問診票は削除されません）\n' +
     '登録・編集した内容は元に戻せません。\n\nよろしいですか？'
   );
   if (!ok) {
@@ -1419,15 +1553,13 @@ function resetToDemoData() {
 
   patients = copyData(DEMO_PATIENTS);
   visits = copyData(DEMO_VISITS);
-  lastIssued = { P: 0, V: 0 }; // IDの番号も初期状態に戻す
+  // IDの番号は戻さない（Supabase の問診票に記録された患者ID（P0009 など）を、別の患者に再利用しないため）
   // 利用者が明示的に初期化を選んだので、読み込みエラーで止めていた保存を再開する
   storageError = false;
 
   if (!saveData()) {
     return;
   }
-  // 問診票も空にする（残すと、作り直した患者IDと間違って結び付いてしまうため）
-  saveQuestionnaires([]);
 
   hideSystemMessage();
   document.getElementById('searchInput').value = '';
@@ -1437,12 +1569,15 @@ function resetToDemoData() {
 
 
 /* ---------------------------------------------------------
-   14. 初期化（ページを開いたときに最初に実行）
+   15. 初期化（ページを開いたときに最初に実行）
    --------------------------------------------------------- */
 
 function init() {
   renderHeaderDate();
-  loadData();
+
+  // --- ログイン ---
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  document.getElementById('btnLogout').addEventListener('click', handleLogout);
 
   // --- 患者一覧 ---
   document.getElementById('btnNewPatient').addEventListener('click', openNewPatientForm);
@@ -1499,6 +1634,7 @@ function init() {
   document.getElementById('btnQuestionnaires').addEventListener('click', showQuestionnaireList);
   document.querySelector('.js-back-to-list').addEventListener('click', showListView);
   document.getElementById('btnBackToQuestionnaires').addEventListener('click', showQuestionnaireList);
+  document.getElementById('btnRefreshQuestionnaires').addEventListener('click', refreshQuestionnaireList);
 
   // 一覧の氏名・「確認」ボタン（data-qid を持つもの）
   document.getElementById('questionnaireTableBody').addEventListener('click', function (event) {
@@ -1535,19 +1671,8 @@ function init() {
     }
   });
 
-  // 別のタブ（受付のタブレットなど）で問診票が送信されたら、件数と一覧を自動で更新する
-  // （storage イベント：同じブラウザの別のタブで localStorage が変わったときに届く知らせ）
-  window.addEventListener('storage', function (event) {
-    if (event.key !== STORAGE_KEY_QUESTIONNAIRES && event.key !== null) {
-      return;
-    }
-    updateQuestionnaireBadge();
-    if (!document.getElementById('view-questionnaires').hidden) {
-      renderQuestionnaireList();
-    }
-  });
-
-  showListView();
+  // ログイン状態を確認してから、画面を表示する
+  startAuth();
 }
 
 // HTML の読み込みが終わったら init() を実行する

@@ -708,7 +708,61 @@ a.btn {
   font-size: 14px;
 }
 
-/* ---------- 15. タブレット・小さい画面 ---------- */
+/* ---------- 15. ログイン ---------- */
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-user {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.header-logout {
+  padding: 4px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.header-logout:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.login-panel {
+  max-width: 440px;
+  margin: 40px auto;
+  padding: 28px;
+}
+
+.login-note {
+  margin: 14px 0 18px;
+  font-size: 14px;
+  color: var(--color-text-sub);
+}
+
+.login-row {
+  margin-bottom: 14px;
+}
+
+.login-row .form-label {
+  display: block;
+  padding-top: 0;
+  margin-bottom: 4px;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* ---------- 16. タブレット・小さい画面 ---------- */
 @media (max-width: 768px) {
   .container {
     padding: 16px;
@@ -716,6 +770,14 @@ a.btn {
 
   .app-title {
     font-size: 16px;
+  }
+
+  .app-header-inner {
+    flex-wrap: wrap;
+  }
+
+  .header-user {
+    display: none;   /* 狭い画面ではメールアドレスを省略 */
   }
 
   .form-row {
